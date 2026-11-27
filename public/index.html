@@ -179,6 +179,24 @@ dialog::backdrop{background:rgba(10,16,24,.55)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;box-shadow:var(--shadow);z-index:50}
 .settings textarea{width:100%;min-height:300px;font-family:var(--f-body);line-height:1.7}
 .ro .editonly{display:none!important}
+/* bulk photos */
+#dlgBulk{width:min(1100px,calc(100vw - 24px))}
+.bulk-top{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.bulk-top label{display:grid;gap:4px;font-size:12px;color:var(--ink-3);font-weight:600}
+.bulk-top select,.bulk-top input{width:100%}
+@media (max-width:640px){.bulk-top{grid-template-columns:1fr 1fr}}
+.bulk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;max-height:min(56vh,620px);overflow:auto;padding:2px}
+.bcard{border:1px solid var(--line);border-radius:8px;overflow:hidden;display:grid;grid-template-rows:auto auto;background:var(--surface);min-width:0}
+.bcard .ph{position:relative;aspect-ratio:4/3;background:var(--sunk) center/cover no-repeat}
+.bcard .ph .n{position:absolute;left:6px;top:6px;background:var(--ink);color:var(--bg);font-family:var(--f-num);font-size:12px;font-weight:600;padding:2px 7px;border-radius:5px}
+.bcard .ph .rm{position:absolute;right:6px;top:6px;border:0;border-radius:5px;background:var(--surface);color:var(--open);font-weight:700;padding:2px 8px;font-size:12px}
+.bcard .fx{display:grid;gap:6px;padding:8px}
+.bcard .fx input,.bcard .fx textarea{width:100%;padding:6px 8px;font-size:13px}
+.bcard .fx textarea{min-height:52px;resize:vertical}
+.bcard .st{font-size:12px;font-weight:600;padding:0 8px 8px}
+.bcard .st.ok{color:var(--done)}.bcard .st.err{color:var(--open)}
+.bcard.done{opacity:.6}
+
 label.btn{cursor:pointer}
 /* import */
 #dlgImp{width:min(1000px,calc(100vw - 24px))}
@@ -218,6 +236,7 @@ label.btn{cursor:pointer}
       <button class="btn" id="btnPpt" type="button" hidden title="지금 보고 있는 점검월·파트의 완료 건을 점검 양식 PPT로 받습니다">완료 건 PPT</button>
       <button class="btn" id="btnCsv" type="button" hidden>CSV 내보내기</button>
       <button class="btn" id="btnSettings" type="button" hidden>파트 설정</button>
+      <button class="btn editonly" id="btnBulk" type="button">사진 일괄 등록</button>
       <label class="btn editonly" id="btnImp" for="impFile">PPT 가져오기</label>
       <input type="file" id="impFile" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
       <button class="btn primary editonly" id="btnNew" type="button">＋ 시정요구 등록</button>
@@ -324,6 +343,22 @@ label.btn{cursor:pointer}
     </div>
     <div class="imp-list" id="impList"></div>
     <div class="sheet-f"><span class="who" id="impProg"></span><div class="btns"><button class="btn" type="button" data-close>닫기</button><button class="btn primary" type="submit" id="impGo" disabled>등록</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="dlgBulk" aria-labelledby="bulkTitle">
+  <form class="sheet" id="bulkForm" method="dialog" novalidate>
+    <div class="sheet-h"><h3 id="bulkTitle">점검 사진 일괄 등록</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
+    <div class="bulk-top">
+      <label>파트<select id="bPart"></select></label>
+      <label>점검월<input type="text" id="bRound" placeholder="2026-11"></label>
+      <label>조치기한 (선택)<input type="date" id="bDue"></label>
+      <label>담당자 (선택)<input type="text" id="bOwner" placeholder="이름"></label>
+    </div>
+    <div class="drop" id="bulkDrop">점검 사진을 <b>여러 장 한꺼번에</b> 끌어다 놓거나 <label for="bulkFile" style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline">사진 선택</label> · Ctrl+V 붙여넣기도 됩니다<br><span style="font-size:12px;color:var(--ink-3)">사진 1장 = 시정요구 1건(개선 전 사진)으로 등록됩니다. 파일 이름(촬영 순서)대로 번호가 매겨집니다. 제목을 비워 두면 ‘현장 지적사항 (사진 N)’으로 등록되니 나중에 고치면 됩니다.</span>
+      <input type="file" id="bulkFile" accept="image/*" multiple hidden></div>
+    <div class="bulk-grid" id="bulkGrid"></div>
+    <div class="sheet-f"><span class="who" id="bulkProg"></span><div class="btns"><button class="btn" type="button" id="bulkClear" hidden>모두 비우기</button><button class="btn" type="button" data-close>닫기</button><button class="btn primary" type="submit" id="bulkGo" disabled>등록</button></div></div>
   </form>
 </dialog>
 
@@ -902,6 +937,88 @@ async function exportDonePpt(){
   }finally{ btn.disabled=false; btn.textContent=label; }
 }
 $("#btnPpt").addEventListener("click",exportDonePpt);
+
+/* ---------- 사진 일괄 등록 ---------- */
+const dlgBulk=$("#dlgBulk"); let bulk=[];
+function bulkNumbers(){
+  const part=$("#bPart").value, round=$("#bRound").value.trim();
+  if(!part){ bulk.forEach(b=>{ if(!b.noTouched) b.no=""; }); return; }
+  const start=+nextNo(part,round).match(/(\d+)$/)[1]; let k=0;
+  for(const b of bulk){ if(b.result?.ok) continue; if(!b.noTouched) b.no="자체점검-"+(start+k); k++; }
+}
+function renderBulk(){
+  bulkNumbers();
+  const g=$("#bulkGrid"); g.replaceChildren();
+  bulk.forEach((b,i)=>{
+    const ph=el("div",{class:"ph"}, el("span",{class:"n",text:b.no||("#"+(i+1))}));
+    ph.style.backgroundImage=`url("${b.url}")`;
+    if(!b.result?.ok) ph.append(el("button",{type:"button",class:"rm",text:"빼기",onclick:()=>{ URL.revokeObjectURL(b.url); bulk.splice(bulk.indexOf(b),1); renderBulk(); }}));
+    const ti=el("input",{type:"text",placeholder:"제목 (예: 계단 난간 미설치)","aria-label":"제목",value:b.title}); ti.addEventListener("input",()=>b.title=ti.value);
+    const tg=el("input",{type:"text",placeholder:"대상 (예: 2층 펌프실)","aria-label":"대상",value:b.target}); tg.addEventListener("input",()=>b.target=tg.value);
+    const is=el("textarea",{placeholder:"현황 및 문제점 (선택)","aria-label":"현황 및 문제점"}); is.value=b.issue; is.addEventListener("input",()=>b.issue=is.value);
+    const card=el("div",{class:"bcard"+(b.result?.ok?" done":"")}, ph, el("div",{class:"fx"},ti,tg,is), b.result? el("div",{class:"st "+(b.result.ok?"ok":"err"),text:b.result.msg}):null);
+    if(b.result?.ok) for(const x of card.querySelectorAll("input,textarea")) x.disabled=true;
+    g.append(card);
+  });
+  const left=bulk.filter(b=>!b.result?.ok).length;
+  $("#bulkGo").textContent=left? `${left}건 등록` : "등록"; $("#bulkGo").disabled=!left || !db || !assets || !canWrite;
+  $("#bulkClear").hidden=!bulk.length;
+  if(!assets) $("#bulkProg").textContent="사진 업로드 권한이 없어 등록할 수 없습니다.";
+  else if(bulk.length && !$("#bulkProg").dataset.busy) $("#bulkProg").textContent=`사진 ${bulk.length}장 · 파트를 고르고 제목을 적은 뒤 등록하세요`;
+}
+function addBulkFiles(files){
+  const imgs=[...files].filter(f=>f.type.startsWith("image/"));
+  if(!imgs.length){ toast("이미지 파일만 넣을 수 있습니다"); return; }
+  imgs.sort((a,b)=>a.name.localeCompare(b.name,"ko",{numeric:true}) || a.lastModified-b.lastModified);
+  for(const f of imgs) bulk.push({file:f, url:URL.createObjectURL(f), title:"", target:"", issue:"", no:""});
+  renderBulk();
+}
+$("#btnBulk").addEventListener("click",()=>{
+  const ps=$("#bPart"); ps.replaceChildren(el("option",{value:"",text:"파트 선택"}),...allParts().map(p=>el("option",{value:p,text:p})));
+  ps.value=state.filter.part||""; $("#bRound").value=state.filter.round||thisRound();
+  renderBulk(); dlgBulk.showModal();
+});
+$("#bPart").addEventListener("change",renderBulk);
+$("#bRound").addEventListener("change",renderBulk);
+$("#bulkFile").addEventListener("change",e=>{ addBulkFiles(e.target.files); e.target.value=""; });
+const bDrop=$("#bulkDrop");
+bDrop.addEventListener("dragover",e=>{e.preventDefault();bDrop.classList.add("on");});
+bDrop.addEventListener("dragleave",()=>bDrop.classList.remove("on"));
+bDrop.addEventListener("drop",e=>{e.preventDefault();bDrop.classList.remove("on");addBulkFiles(e.dataTransfer.files);});
+dlgBulk.addEventListener("dragover",e=>e.preventDefault());
+dlgBulk.addEventListener("drop",e=>{ if(e.defaultPrevented) return; e.preventDefault(); addBulkFiles(e.dataTransfer.files); });
+dlgBulk.addEventListener("paste",e=>{
+  const ae=document.activeElement; if(ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && e.clipboardData.types.includes("text/plain")) return;
+  const fs=[...(e.clipboardData?.items||[])].filter(i=>i.kind==="file"&&i.type.startsWith("image/")).map((i,k)=>{ const f=i.getAsFile(); return f.name? f : new File([f],`paste-${Date.now()}-${k}.png`,{type:f.type}); });
+  if(fs.length){ e.preventDefault(); addBulkFiles(fs); }
+});
+dlgBulk.addEventListener("click",e=>{ if(e.target.closest("[data-close]")) dlgBulk.close(); });
+$("#bulkClear").addEventListener("click",()=>{ bulk.forEach(b=>URL.revokeObjectURL(b.url)); bulk=[]; $("#bulkProg").textContent=""; renderBulk(); });
+dlgBulk.addEventListener("close",()=>{ if(bulk.every(b=>b.result?.ok)){ bulk.forEach(b=>URL.revokeObjectURL(b.url)); bulk=[]; $("#bulkProg").textContent=""; } });
+$("#bulkForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const part=$("#bPart").value, round=$("#bRound").value.trim();
+  if(!part){ toast("파트를 선택하세요"); $("#bPart").focus(); return; }
+  if(!/^\d{4}-\d{2}$/.test(round)){ toast("점검월은 2026-11 형식으로 입력하세요"); $("#bRound").focus(); return; }
+  const todo=bulk.filter(b=>!b.result?.ok); if(!todo.length) return;
+  const go=$("#bulkGo"); go.disabled=true; $("#bulkProg").dataset.busy="1"; let ok=0;
+  for(let i=0;i<todo.length;i++){
+    const b=todo[i]; $("#bulkProg").textContent=`${i+1} / ${todo.length} 등록 중…`;
+    try{
+      const up=await assets.upload(await shrink(b.file));
+      const now=new Date().toISOString(), idx=bulk.indexOf(b)+1;
+      const rec={part, round, status:"open", due:$("#bDue").value||"", owner:$("#bOwner").value.trim(), doneAt:"",
+        no:b.no, title:(b.title.trim()||`현장 지적사항 (사진 ${idx})`), target:b.target.trim(), issue:b.issue.trim(), action:"",
+        beforeId:up.id, afterId:null, updatedAt:now, updatedBy:myId||null, createdAt:now, createdBy:myId||null, source:"photos"};
+      await db.collection("items").doc().set(rec);
+      b.result={ok:true,msg:"등록됨"}; ok++;
+    }catch(err){ b.result={ok:false,msg:"실패: "+(err?.message||err?.code||err)}; }
+    renderBulk();
+  }
+  delete $("#bulkProg").dataset.busy;
+  $("#bulkProg").textContent=`${ok}건 등록 완료`+(ok<todo.length? ` · ${todo.length-ok}건 실패 (다시 ‘등록’을 누르면 실패한 것만 재시도)`:"");
+  if(ok){ toast(`사진 ${ok}장을 시정요구로 등록했습니다`); state.filter.part=part; state.filter.round=round; render(); }
+});
 
 /* ---------- filters ---------- */
 $("#fRound").addEventListener("change",e=>{state.filter.round=e.target.value;render();});
