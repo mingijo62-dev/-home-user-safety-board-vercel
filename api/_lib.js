@@ -9,9 +9,9 @@ let ready = null;
 export async function init() {
   if (!sql) throw new HttpError(500, 'DATABASE_URL 환경변수가 없습니다. Vercel 프로젝트의 Storage에서 Neon(Postgres)을 연결한 뒤 다시 배포하세요.');
   ready ??= (async () => {
-    await sql`create table if not exists items (id text primary key, data jsonb not null, updated_at timestamptz not null default now())`;
-    await sql`create table if not exists settings (key text primary key, value jsonb not null)`;
-    await sql`insert into settings (key, value) values ('parts', ${JSON.stringify({ list: DEFAULT_PARTS })}::jsonb) on conflict (key) do nothing`;
+    await sql`create table if not exists sb_items (id text primary key, data jsonb not null, updated_at timestamptz not null default now())`;
+    await sql`create table if not exists sb_settings (key text primary key, value jsonb not null)`;
+    await sql`insert into sb_settings (key, value) values ('parts', ${JSON.stringify({ list: DEFAULT_PARTS })}::jsonb) on conflict (key) do nothing`;
   })().catch(e => { ready = null; throw e; });
   return ready;
 }
