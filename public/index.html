@@ -329,7 +329,7 @@ label.btn{cursor:pointer}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 <script>
 (() => {
 const $ = s => document.querySelector(s);
@@ -824,9 +824,13 @@ $("#impForm").addEventListener("submit",async e=>{
 });
 
 /* ---------- 완료 건 PPT 내보내기 ---------- */
-const PPT_SRC="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js";
+const PPT_SRCS=["vendor/pptxgen.bundle.js","https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js","https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js","https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"];
 let photoProxy=null;
-function loadScript(src){ return new Promise((res,rej)=>{ if(window.PptxGenJS) return res(); const s=document.createElement("script"); s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error("PPT 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하세요.")); document.head.append(s); }); }
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=()=>res(); s.onerror=()=>{ s.remove(); rej(); }; document.head.append(s); }); }
+async function loadPptx(){
+  for(const src of PPT_SRCS){ if(window.PptxGenJS) return; try{ await loadScript(src); }catch{} }
+  if(!window.PptxGenJS) throw new Error("PPT 모듈을 불러오지 못했습니다. 회사 네트워크에서 외부 스크립트가 막혀 있는지 확인하세요.");
+}
 async function imgData(url, png){
   if(!url) return null;
   const get=async u=>{ const r=await fetch(u); if(!r.ok) throw new Error(String(r.status)); return r.blob(); };
@@ -846,7 +850,7 @@ async function exportDonePpt(){
   const btn=$("#btnPpt"), label=btn.textContent; btn.disabled=true;
   try{
     btn.textContent="PPT 준비 중…";
-    await loadScript(PPT_SRC);
+    await loadPptx();
     const pptx=new window.PptxGenJS();
     pptx.defineLayout({name:"A4P",width:8.27,height:11.69}); pptx.layout="A4P";
     const F="맑은 고딕", PW=8.27, X=0.35, W=PW-0.7;
