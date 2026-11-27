@@ -1,7 +1,29 @@
 // 공용: DB 연결, 테이블 자동 생성, 응답 헬퍼
 import { neon } from '@neondatabase/serverless';
 
-const DEFAULT_PARTS = ['조성파트','PM21파트','PM22파트','PM23파트','CM21파트','CM22파트','완정파트','품관파트','환경파트','보전팀'];
+const DEFAULT_PARTS = ['조성파트','PM21파트','PM22파트','PM23파트','CM21파트','CM22파트','완정파트','품관파트','환경파트','보전팀','보전팀-기계파트','보전팀-계전파트','보전팀-롤연마파트'];
+
+// 한 번만 적용되는 파트 추가 작업. 적용 기록은 sb_settings의 'migrations'에 남는다.
+// (화면의 '파트 설정'에서 나중에 지운 파트는 다시 살아나지 않음)
+const MIGRATIONS = [
+  { id: '2026-11-27-maint-subparts', after: '보전팀', add: ['보전팀-기계파트', '보전팀-계전파트', '보전팀-롤연마파트'] },
+];
+async function runMigrations() {
+  const done = (await sql`select value from sb_settings where key = 'migrations'`)[0]?.value?.done || [];
+  for (const m of MIGRATIONS) {
+    if (done.includes(m.id)) continue;
+    const list = (await sql`select value from sb_settings where key = 'parts'`)[0]?.value?.list || [];
+    const missing = m.add.filter(p => !list.includes(p));
+    if (missing.length) {
+      const at = list.indexOf(m.after);
+      if (at >= 0) list.splice(at + 1, 0, ...missing); else list.push(...missing);
+      await sql`update sb_settings set value = ${JSON.stringify({ list })}::jsonb where key = 'parts'`;
+    }
+    done.push(m.id);
+    await sql`insert into sb_settings (key, value) values ('migrations', ${JSON.stringify({ done })}::jsonb)
+              on conflict (key) do update set value = excluded.value`;
+  }
+}
 // Vercel이 연결 시 접두어를 붙이는 경우(예: STORAGE_DATABASE_URL)도 찾는다
 export const envLike = (...names) => {
   for (const n of names) if (process.env[n]) return process.env[n];
@@ -18,6 +40,7 @@ export async function init() {
     await sql`create table if not exists sb_items (id text primary key, data jsonb not null, updated_at timestamptz not null default now())`;
     await sql`create table if not exists sb_settings (key text primary key, value jsonb not null)`;
     await sql`insert into sb_settings (key, value) values ('parts', ${JSON.stringify({ list: DEFAULT_PARTS })}::jsonb) on conflict (key) do nothing`;
+    await runMigrations();
   })().catch(e => { ready = null; throw e; });
   return ready;
 }
