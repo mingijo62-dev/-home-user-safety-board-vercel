@@ -2,7 +2,13 @@
 import { neon } from '@neondatabase/serverless';
 
 const DEFAULT_PARTS = ['조성파트','PM21파트','PM22파트','PM23파트','CM21파트','CM22파트','완정파트','품관파트','환경파트','보전팀'];
-const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+// Vercel이 연결 시 접두어를 붙이는 경우(예: STORAGE_DATABASE_URL)도 찾는다
+export const envLike = (...names) => {
+  for (const n of names) if (process.env[n]) return process.env[n];
+  for (const n of names) { const k = Object.keys(process.env).find(k => k.endsWith('_' + n) && process.env[k]); if (k) return process.env[k]; }
+  return '';
+};
+const url = envLike('DATABASE_URL', 'POSTGRES_URL');
 export const sql = url ? neon(url) : null;
 
 let ready = null;
