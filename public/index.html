@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>자체안전점검 시정조치 현황판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: control-room board. Summary strip → part matrix → corrective-action log; record opens as the inspection sheet. */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --sunk:#e9edf3; --line:#d5dce6; --line-strong:#9aa8ba;
+  --ink:#14202e; --ink-2:#4a5a6e; --ink-3:#7a889a;
+  --accent:#1059b8; --accent-ink:#ffffff; --accent-soft:#e3edfa;
+  --open:#c4332b; --open-soft:#fbe6e4;
+  --doing:#b76e00; --doing-soft:#fdf0d9;
+  --done:#1f7a4a; --done-soft:#dff2e7;
+  --shadow:0 1px 2px rgba(20,32,46,.06),0 6px 24px rgba(20,32,46,.08);
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f151d; --surface:#17202b; --sunk:#111922; --line:#2a3644; --line-strong:#4b5b6e;
+  --ink:#e6edf5; --ink-2:#a8b6c6; --ink-3:#7d8b9c;
+  --accent:#5c9cf0; --accent-ink:#0b1420; --accent-soft:#1a2b42;
+  --open:#f07a70; --open-soft:#3a1f1e; --doing:#f0b155; --doing-soft:#3a2c14; --done:#5fc78f; --done-soft:#16321f;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 28px rgba(0,0,0,.35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151d; --surface:#17202b; --sunk:#111922; --line:#2a3644; --line-strong:#4b5b6e;
+  --ink:#e6edf5; --ink-2:#a8b6c6; --ink-3:#7d8b9c;
+  --accent:#5c9cf0; --accent-ink:#0b1420; --accent-soft:#1a2b42;
+  --open:#f07a70; --open-soft:#3a1f1e; --doing:#f0b155; --doing-soft:#3a2c14; --done:#5fc78f; --done-soft:#16321f;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 28px rgba(0,0,0,.35); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-block:18px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 320px}
+.mark{width:38px;height:38px;flex:none;border-radius:8px;background:var(--accent);display:grid;place-items:center}
+.mark svg{width:22px;height:22px}
+.brand h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.brand p{margin:0;color:var(--ink-3);font-size:12.5px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:7px;padding:8px 14px;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--open);border-color:var(--open)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+main .wrap{display:grid;gap:20px;padding-block:20px 48px}
+.note{padding:10px 14px;border-radius:8px;background:var(--accent-soft);color:var(--ink);font-size:13px}
+.note.warn{background:var(--doing-soft)}
+
+/* filters */
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.filters label{font-size:12px;color:var(--ink-3);font-weight:600;letter-spacing:.02em}
+.field-inline{display:flex;align-items:center;gap:6px}
+select,input[type=text],input[type=search],input[type=date],textarea{background:var(--surface);border:1px solid var(--line-strong);border-radius:7px;padding:7px 10px}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.grow{flex:1 1 200px;min-width:0}
+.grow input{width:100%}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kpi{padding:14px 16px;border-right:1px solid var(--line);display:grid;gap:2px}
+.kpi:last-child{border-right:0}
+.kpi .k{font-size:12px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .v{font-family:var(--f-num);font-size:28px;font-weight:600;line-height:1.15}
+.kpi .s{font-size:12px;color:var(--ink-3)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.open{background:var(--open)}.dot.doing{background:var(--doing)}.dot.done{background:var(--done)}
+.kpi.alert .v{color:var(--open)}
+.rate-bar{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;margin-top:6px}
+.rate-bar i{display:block;height:100%;background:var(--done)}
+@media (max-width:820px){.kpis{grid-template-columns:repeat(3,1fr)}.kpi:nth-child(3){border-right:0}.kpi:nth-child(-n+3){border-bottom:1px solid var(--line)}}
+@media (max-width:460px){.kpis{grid-template-columns:repeat(2,1fr)}.kpi{border-right:1px solid var(--line)!important;border-bottom:1px solid var(--line)}.kpi:nth-child(2n){border-right:0!important}}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.panel-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.panel-h h2{margin:0;font-size:15px;font-weight:700}
+.panel-h .hint{font-size:12px;color:var(--ink-3)}
+.scroll{overflow-x:auto}
+
+/* part matrix */
+table{border-collapse:collapse;width:100%}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--ink-3);font-weight:600;background:var(--sunk)}
+td.n,th.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.parts tbody tr{cursor:pointer}
+.parts tbody tr:hover{background:var(--sunk)}
+.parts tbody tr[aria-selected=true]{background:var(--accent-soft)}
+.parts tbody tr:last-child td{border-bottom:0}
+.zero{color:var(--ink-3)}
+.c-open{color:var(--open);font-weight:600}.c-doing{color:var(--doing);font-weight:600}.c-done{color:var(--done);font-weight:600}
+.stack{display:flex;height:10px;width:180px;border-radius:3px;overflow:hidden;background:var(--sunk)}
+.stack i{display:block;height:100%}
+.stack .o{background:var(--open)}.stack .d{background:var(--doing)}.stack .c{background:var(--done)}
+.pct{display:inline-block;min-width:3.5em;text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;margin-left:8px;font-weight:600}
+.flag{display:inline-block;padding:1px 7px;border-radius:999px;background:var(--open-soft);color:var(--open);font-size:11.5px;font-weight:700}
+
+/* item log */
+.items{list-style:none;margin:0;padding:0}
+.item{display:grid;grid-template-columns:118px 1fr auto;gap:4px 16px;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center}
+.item:last-child{border-bottom:0}
+.item:hover{background:var(--sunk)}
+.item .code{font-family:var(--f-num);font-size:12.5px;color:var(--ink-2);display:grid;gap:2px}
+.item .code b{color:var(--ink);font-family:var(--f-body);font-weight:600;font-size:12.5px}
+.item .body{min-width:0}
+.item .t{font-weight:600;overflow-wrap:anywhere}
+.item .m{font-size:12.5px;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:4px 12px}
+.item .side{display:flex;align-items:center;gap:10px}
+.thumbs{display:flex;gap:4px}
+.thumbs span{width:40px;height:40px;border-radius:5px;background:var(--sunk) center/cover no-repeat;border:1px solid var(--line);display:grid;place-items:center;font-size:10px;color:var(--ink-3)}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.pill.open{background:var(--open-soft);color:var(--open)}
+.pill.doing{background:var(--doing-soft);color:var(--doing)}
+.pill.done{background:var(--done-soft);color:var(--done)}
+.over{color:var(--open);font-weight:700}
+@media (max-width:640px){.item{grid-template-columns:1fr auto}.item .code{grid-column:1/-1;display:flex;gap:8px}.item .thumbs{display:none}}
+.empty{padding:36px 16px;text-align:center;color:var(--ink-3)}
+.empty strong{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+
+/* sheet dialog */
+dialog{border:0;padding:0;border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);width:min(860px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
+dialog::backdrop{background:rgba(10,16,24,.55)}
+.sheet{display:grid;gap:14px;padding:18px 20px 20px}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:3px solid var(--ink);padding-bottom:10px}
+.sheet-h h3{margin:0;font-size:16px;font-weight:700}
+.x{border:0;background:none;font-size:22px;line-height:1;color:var(--ink-2);padding:4px 8px}
+.meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.meta label,.f label{display:grid;gap:4px;font-size:12px;color:var(--ink-3);font-weight:600}
+.meta select,.meta input{width:100%}
+@media (max-width:640px){.meta{grid-template-columns:1fr 1fr}}
+.form-grid{border:1.5px solid var(--ink);display:grid}
+.row{display:grid;grid-template-columns:120px 1fr;border-bottom:1.5px solid var(--ink)}
+.row:last-child{border-bottom:0}
+.row>.lab{background:var(--sunk);display:grid;place-items:center;text-align:center;font-weight:700;padding:10px;border-right:1.5px solid var(--ink);font-size:14px}
+.row>.val{padding:8px;min-width:0}
+.row>.val input,.row>.val textarea{width:100%;border-color:var(--line)}
+.row>.val textarea{min-height:80px;resize:vertical;line-height:1.6}
+.row.title .val{display:grid;grid-template-columns:130px 1fr;gap:8px}
+@media (max-width:560px){.row{grid-template-columns:1fr}.row>.lab{border-right:0;border-bottom:1px solid var(--line);place-items:start;padding:6px 10px}.row.title .val{grid-template-columns:1fr}}
+.photos-h{text-align:center;font-weight:700;padding:8px;background:var(--sunk);border-bottom:1.5px solid var(--ink)}
+.photos{display:grid;grid-template-columns:1fr 1fr}
+.photos>div{display:grid;grid-template-rows:auto 1fr}
+.photos>div+div{border-left:1.5px solid var(--ink)}
+.photos .ph-lab{text-align:center;font-weight:700;padding:6px;border-bottom:1.5px solid var(--ink)}
+.slot{position:relative;aspect-ratio:4/3;max-width:100%;margin:10px;border:1.5px dashed var(--line-strong);border-radius:6px;display:grid;place-items:center;background:var(--sunk) center/contain no-repeat;color:var(--ink-3);font-size:13px;text-align:center;overflow:hidden}
+.slot.has{border-style:solid;border-color:var(--line)}
+.slot .ops{position:absolute;right:6px;bottom:6px;display:flex;gap:6px}
+.slot .ops button,.slot label.up{font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--line-strong);background:var(--surface);font-weight:600;cursor:pointer}
+.slot input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.slot.busy::after{content:"업로드 중…";position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--surface) 80%,transparent);color:var(--ink);font-weight:600}
+@media (max-width:480px){.photos{grid-template-columns:1fr}.photos>div+div{border-left:0;border-top:1.5px solid var(--ink)}}
+.sheet-f{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.sheet-f .who{font-size:12px;color:var(--ink-3)}
+.sheet-f .btns{display:flex;gap:8px;flex-wrap:wrap}
+.confirm{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--open);font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;box-shadow:var(--shadow);z-index:50}
+.settings textarea{width:100%;min-height:300px;font-family:var(--f-body);line-height:1.7}
+.ro .editonly{display:none!important}
+label.btn{cursor:pointer}
+/* import */
+#dlgImp{width:min(1000px,calc(100vw - 24px))}
+.imp-top{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end}
+.imp-top label{display:grid;gap:4px;font-size:12px;color:var(--ink-3);font-weight:600}
+.imp-sum{font-size:13px;color:var(--ink-2)}
+.drop{border:1.5px dashed var(--line-strong);border-radius:8px;padding:22px;text-align:center;color:var(--ink-2);background:var(--sunk)}
+.drop.on{border-color:var(--accent);background:var(--accent-soft)}
+.imp-list{display:grid;gap:10px;max-height:min(58vh,640px);overflow:auto;padding-right:2px}
+.imp{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;border:1px solid var(--line);border-radius:8px;padding:12px;align-items:start}
+.imp.off{opacity:.55}
+.imp input[type=checkbox]{width:18px;height:18px;margin-top:6px}
+.imp .f1{display:grid;grid-template-columns:140px 120px minmax(0,1fr) 100px;gap:6px}
+.imp .f1 select,.imp .f1 input{width:100%;padding:6px 8px}
+.imp .txt{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:12.5px;color:var(--ink-2)}
+.imp .txt div{min-width:0;white-space:pre-line;overflow-wrap:anywhere;max-height:5.4em;overflow:hidden}
+.imp .txt b{display:block;color:var(--ink-3);font-size:11.5px}
+.imp .pics{display:flex;gap:6px}
+.imp .pics span{width:72px;height:54px;border-radius:5px;border:1px solid var(--line);background:var(--sunk) center/cover no-repeat;display:grid;place-items:center;font-size:11px;color:var(--ink-3);text-align:center}
+.imp .warn{grid-column:2/-1;font-size:12px;color:var(--doing);font-weight:600}
+.imp .res{grid-column:2/-1;font-size:12px;font-weight:600}
+.imp .res.ok{color:var(--done)}.imp .res.err{color:var(--open)}
+@media (max-width:720px){.imp{grid-template-columns:auto minmax(0,1fr)}.imp .pics{grid-column:2}.imp .f1{grid-template-columns:1fr 1fr}.imp .txt{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{color-scheme:light}html,body{margin:0}body{font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg></div>
+      <div><h1>자체안전점검 시정조치 현황판</h1><p id="subtitle">파트별 시정요구사항 등록 · 조치 · 완료 모니터링</p></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btnCsv" type="button" hidden>CSV 내보내기</button>
+      <button class="btn" id="btnSettings" type="button" hidden>파트 설정</button>
+      <label class="btn editonly" id="btnImp" for="impFile">PPT 가져오기</label>
+      <input type="file" id="impFile" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+      <button class="btn primary editonly" id="btnNew" type="button">＋ 시정요구 등록</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="note" id="statusNote">현황을 불러오는 중입니다…</div>
+
+    <div class="filters" role="group" aria-label="필터">
+      <div class="field-inline"><label for="fRound">점검월</label><select id="fRound"><option value="">전체</option></select></div>
+      <div class="field-inline"><label for="fPart">파트</label><select id="fPart"><option value="">전체 파트</option></select></div>
+      <div class="seg" id="fStatus" role="group" aria-label="상태">
+        <button type="button" data-v="" aria-pressed="true">전체</button>
+        <button type="button" data-v="open" aria-pressed="false">미조치</button>
+        <button type="button" data-v="doing" aria-pressed="false">조치중</button>
+        <button type="button" data-v="done" aria-pressed="false">완료</button>
+        <button type="button" data-v="over" aria-pressed="false">기한초과</button>
+      </div>
+      <div class="grow"><input type="search" id="fq" placeholder="제목·대상·내용·담당자 검색" aria-label="검색"></div>
+    </div>
+
+    <section class="kpis" aria-label="요약">
+      <div class="kpi"><span class="k">전체 시정요구</span><span class="v" id="kTotal">0</span><span class="s" id="kParts">참여 파트 0 / 0</span></div>
+      <div class="kpi"><span class="k"><i class="dot open"></i>미조치</span><span class="v" id="kOpen">0</span><span class="s">조치 착수 전</span></div>
+      <div class="kpi"><span class="k"><i class="dot doing"></i>조치중</span><span class="v" id="kDoing">0</span><span class="s">개선 진행</span></div>
+      <div class="kpi"><span class="k"><i class="dot done"></i>완료</span><span class="v" id="kDone">0</span><span class="s">개선 결과 등록</span></div>
+      <div class="kpi" id="kOverBox"><span class="k">기한초과</span><span class="v" id="kOver">0</span><span class="s">조치기한 지남, 미완료</span></div>
+      <div class="kpi"><span class="k">완료율</span><span class="v" id="kRate">0%</span><div class="rate-bar"><i id="kRateBar" style="width:0"></i></div></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hParts">
+      <div class="panel-h"><h2 id="hParts">파트별 현황</h2><span class="hint">행을 누르면 해당 파트만 봅니다</span></div>
+      <div class="scroll">
+        <table class="parts">
+          <thead><tr><th>파트</th><th class="n">전체</th><th class="n">미조치</th><th class="n">조치중</th><th class="n">완료</th><th class="n">기한초과</th><th>진행률</th></tr></thead>
+          <tbody id="partRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hItems">
+      <div class="panel-h"><h2 id="hItems">시정요구 목록</h2><span class="hint" id="itemsHint"></span></div>
+      <ul class="items" id="itemList"></ul>
+    </section>
+  </div>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form class="sheet" id="sheet" method="dialog" novalidate>
+    <div class="sheet-h"><h3 id="dlgTitle">■ 자체안전점검_재해분석 및 방지대책</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
+    <div class="meta">
+      <label>파트<select id="sPart" required></select></label>
+      <label>점검월<input type="text" id="sRound" placeholder="2026-11" inputmode="numeric"></label>
+      <label>상태<select id="sStatus"><option value="open">미조치</option><option value="doing">조치중</option><option value="done">완료</option></select></label>
+      <label>조치기한<input type="date" id="sDue"></label>
+      <label>담당자<input type="text" id="sOwner" placeholder="이름"></label>
+      <label>완료일<input type="date" id="sDoneAt"></label>
+    </div>
+    <div class="form-grid">
+      <div class="row title"><div class="lab">점검 번호</div><div class="val"><input type="text" id="sNo" aria-label="점검 번호" placeholder="자체점검-1"><input type="text" id="sTitle" aria-label="제목" placeholder="예: 밀폐공간 진입 표지판 오염 및 미부착 1개소"></div></div>
+      <div class="row"><div class="lab">대&nbsp;&nbsp;상</div><div class="val"><input type="text" id="sTarget" placeholder="예: 전공정"></div></div>
+      <div class="row"><div class="lab">현황 및<br>문제점</div><div class="val"><textarea id="sIssue" placeholder="○ 지적된 현황과 문제점"></textarea></div></div>
+      <div class="row"><div class="lab">개선<br>결과</div><div class="val"><textarea id="sAction" placeholder="○ 조치한 내용"></textarea></div></div>
+      <div>
+        <div class="photos-h">개선 결과 내용</div>
+        <div class="photos">
+          <div><div class="ph-lab">개선 전</div><div class="slot" id="slotBefore"></div></div>
+          <div><div class="ph-lab">개선 후</div><div class="slot" id="slotAfter"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-f">
+      <span class="who" id="sWho"></span>
+      <div class="btns">
+        <span class="confirm" id="delConfirm" hidden>삭제할까요? <button class="btn danger" type="button" id="delYes">삭제</button><button class="btn" type="button" id="delNo">취소</button></span>
+        <button class="btn danger editonly" type="button" id="btnDel">삭제</button>
+        <button class="btn" type="button" data-close>닫기</button>
+        <button class="btn primary editonly" type="submit" id="btnSave">저장</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgSet" aria-labelledby="setTitle">
+  <form class="sheet settings" id="setForm" method="dialog">
+    <div class="sheet-h"><h3 id="setTitle">파트 설정</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
+    <label for="setParts" style="font-size:13px;color:var(--ink-2)">한 줄에 한 파트씩 입력하세요. 순서대로 현황판에 표시됩니다.</label>
+    <textarea id="setParts"></textarea>
+    <div class="sheet-f"><span class="who">이미 등록된 시정요구의 파트명은 바뀌지 않습니다.</span><div class="btns"><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit">저장</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="dlgImp" aria-labelledby="impTitle">
+  <form class="sheet" id="impForm" method="dialog" novalidate>
+    <div class="sheet-h"><h3 id="impTitle">PPT에서 시정요구 가져오기</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
+    <div class="drop" id="impDrop">점검 양식 PPT(.pptx)를 여기에 끌어다 놓거나 <label for="impFile" style="color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline">파일 선택</label><br><span style="font-size:12px;color:var(--ink-3)">슬라이드마다 번호·제목·대상·현황 및 문제점·개선 결과·개선 전/후 사진을 읽어 옵니다. 표지는 건너뜁니다. (.ppt는 PowerPoint에서 .pptx로 저장 후 올려 주세요)</span></div>
+    <div class="imp-top" id="impTop" hidden>
+      <label>파트를 못 찾은 슬라이드의 파트<select id="impPart"></select></label>
+      <label>점검월<input type="text" id="impRound" placeholder="2026-11" style="width:110px"></label>
+      <span class="imp-sum" id="impSum"></span>
+    </div>
+    <div class="imp-list" id="impList"></div>
+    <div class="sheet-f"><span class="who" id="impProg"></span><div class="btns"><button class="btn" type="button" data-close>닫기</button><button class="btn primary" type="submit" id="impGo" disabled>등록</button></div></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const STATUS = {open:"미조치", doing:"조치중", done:"완료"};
+const state = {items: [], parts: [], loaded:false, filter:{round:"", part:"", status:"", q:""}, editing:null, draft:null};
+let db=null, assets=null, user=null, downloads=null, myId=null, canWrite=true, canAdmin=false;
+
+const today = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const thisRound = () => today().slice(0,7);
+const isOver = it => it.status!=="done" && it.due && it.due < today();
+const blobUrl = id => /^https:\/\//.test(id) ? id.replace(/["\\()]/g, encodeURIComponent) : "";
+function el(tag, attrs={}, ...kids){ const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==="class") e.className=v; else if(k==="text") e.textContent=v; else if(k.startsWith("on")) e.addEventListener(k.slice(2),v); else if(v!=null && v!==false) e.setAttribute(k, v===true?"":v);} for(const c of kids) if(c!=null) e.append(c); return e; }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
+function note(msg, warn){ const n=$("#statusNote"); if(!msg){n.hidden=true;return;} n.hidden=false; n.textContent=msg; n.classList.toggle("warn",!!warn); }
+
+/* ---------- derived ---------- */
+function allParts(){
+  const list=[...state.parts];
+  for(const it of state.items) if(it.part && !list.includes(it.part)) list.push(it.part);
+  return list;
+}
+function inScope(it, ignorePart){
+  const f=state.filter;
+  if(f.round && it.round!==f.round) return false;
+  if(!ignorePart && f.part && it.part!==f.part) return false;
+  if(f.q){ const q=f.q.toLowerCase(); const hay=[it.no,it.title,it.target,it.issue,it.action,it.owner,it.part].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
+  return true;
+}
+function statusMatch(it){ const s=state.filter.status; if(!s) return true; if(s==="over") return isOver(it); return it.status===s; }
+
+/* ---------- render ---------- */
+function render(){
+  // round options
+  const rounds=[...new Set([thisRound(), ...state.items.map(i=>i.round).filter(Boolean)])].sort().reverse();
+  const rs=$("#fRound"), cur=state.filter.round;
+  rs.replaceChildren(el("option",{value:"",text:"전체"}), ...rounds.map(r=>el("option",{value:r,text:r.replace("-","년 ")+"월"})));
+  rs.value=cur;
+  const parts=allParts();
+  const ps=$("#fPart"), curP=state.filter.part;
+  ps.replaceChildren(el("option",{value:"",text:"전체 파트"}), ...parts.map(p=>el("option",{value:p,text:p})));
+  ps.value=parts.includes(curP)?curP:"";
+
+  // KPI (scope = round + part + search, all statuses)
+  const scoped=state.items.filter(i=>inScope(i));
+  const c={open:0,doing:0,done:0,over:0};
+  for(const it of scoped){ c[it.status]=(c[it.status]||0)+1; if(isOver(it)) c.over++; }
+  const total=scoped.length, rate= total? Math.round(c.done/total*100):0;
+  $("#kTotal").textContent=total; $("#kOpen").textContent=c.open; $("#kDoing").textContent=c.doing; $("#kDone").textContent=c.done; $("#kOver").textContent=c.over;
+  $("#kOverBox").classList.toggle("alert", c.over>0);
+  $("#kRate").textContent=rate+"%"; $("#kRateBar").style.width=rate+"%";
+  const roundOnly=state.items.filter(i=>inScope(i,true));
+  const active=new Set(roundOnly.map(i=>i.part));
+  $("#kParts").textContent=`등록 파트 ${parts.filter(p=>active.has(p)).length} / ${parts.length}`;
+
+  // part matrix (ignores part filter so all parts stay visible)
+  const tb=$("#partRows"); tb.replaceChildren();
+  if(!parts.length){ tb.append(el("tr",{},el("td",{colspan:"7",class:"zero",text: state.loaded? "등록된 파트가 없습니다. ‘파트 설정’에서 파트를 추가하세요." : "불러오는 중…"}))); }
+  for(const p of parts){
+    const its=roundOnly.filter(i=>i.part===p);
+    const o=its.filter(i=>i.status==="open").length, d=its.filter(i=>i.status==="doing").length, k=its.filter(i=>i.status==="done").length, ov=its.filter(isOver).length, n=its.length;
+    const bar=el("div",{class:"stack","aria-hidden":"true"});
+    if(n){ bar.append(el("i",{class:"c",style:`width:${k/n*100}%`}),el("i",{class:"d",style:`width:${d/n*100}%`}),el("i",{class:"o",style:`width:${o/n*100}%`})); }
+    const cell=(v,cls)=>el("td",{class:"n "+(v?cls:"zero"),text:String(v)});
+    const tr=el("tr",{tabindex:"0","aria-selected":String(state.filter.part===p)},
+      el("td",{},el("strong",{text:p})),
+      el("td",{class:"n"+(n?"":" zero"),text:String(n)}),
+      cell(o,"c-open"), cell(d,"c-doing"), cell(k,"c-done"),
+      el("td",{class:"n"}, ov? el("span",{class:"flag",text:String(ov)}) : el("span",{class:"zero",text:"0"})),
+      el("td",{}, el("div",{style:"display:flex;align-items:center"}, bar, el("span",{class:"pct",text: n? Math.round(k/n*100)+"%":"—"}))));
+    const pick=()=>{ state.filter.part = state.filter.part===p? "":p; render(); };
+    tr.addEventListener("click",pick); tr.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();pick();} });
+    tb.append(tr);
+  }
+
+  // item list
+  const list=scoped.filter(statusMatch).sort((a,b)=>{
+    const rank=i=> isOver(i)?0 : i.status==="open"?1 : i.status==="doing"?2 : 3;
+    return rank(a)-rank(b) || (parts.indexOf(a.part)-parts.indexOf(b.part)) || String(a.no).localeCompare(String(b.no),"ko",{numeric:true});
+  });
+  $("#itemsHint").textContent=`${list.length}건 표시 · 기한초과 → 미조치 → 조치중 → 완료 순`;
+  const ul=$("#itemList"); ul.replaceChildren();
+  if(!list.length){
+    ul.append(el("li",{class:"empty"}, el("strong",{text: state.loaded? (state.items.length? "조건에 맞는 시정요구가 없습니다":"아직 등록된 시정요구가 없습니다") : "불러오는 중…"}), state.loaded && !state.items.length? document.createTextNode("각 파트에서 ‘＋ 시정요구 등록’으로 점검 양식을 입력하면 여기에 모입니다."):null));
+  }
+  for(const it of list){
+    const over=isOver(it);
+    const meta=el("div",{class:"m"},
+      it.target? el("span",{text:"대상 · "+it.target}):null,
+      it.owner? el("span",{text:"담당 · "+it.owner}):null,
+      it.due? el("span",{class: over?"over":"", text:"기한 · "+it.due+(over?" (초과)":"")}):null,
+      it.status==="done"&&it.doneAt? el("span",{text:"완료 · "+it.doneAt}):null);
+    const th=el("div",{class:"thumbs"});
+    for(const [k,lab] of [["beforeId","전"],["afterId","후"]]){
+      const s=el("span",{title:"개선 "+lab}); if(it[k]) s.style.backgroundImage=`url("${blobUrl(it[k])}")`; else s.textContent=lab; th.append(s);
+    }
+    const li=el("li",{class:"item",tabindex:"0"},
+      el("div",{class:"code"}, el("b",{text:it.part||"미지정"}), el("span",{text:it.no||"—"})),
+      el("div",{class:"body"}, el("div",{class:"t",text:it.title||"(제목 없음)"}), meta),
+      el("div",{class:"side"}, th, el("span",{class:"pill "+it.status,text:STATUS[it.status]||it.status})));
+    li.addEventListener("click",()=>openSheet(it)); li.addEventListener("keydown",e=>{ if(e.key==="Enter"){openSheet(it);} });
+    ul.append(li);
+  }
+}
+
+/* ---------- sheet dialog ---------- */
+const dlg=$("#dlg");
+function partOptions(sel, current){ const ps=allParts(); if(current && !ps.includes(current)) ps.push(current); sel.replaceChildren(el("option",{value:"",text:"선택"}),...ps.map(p=>el("option",{value:p,text:p}))); sel.value=current||""; }
+function nextNo(part, round){
+  let max=0; for(const it of state.items) if(it.part===part && it.round===round){ const m=String(it.no||"").match(/(\d+)\s*$/); if(m) max=Math.max(max,+m[1]); }
+  return "자체점검-"+(max+1);
+}
+function openSheet(it){
+  state.editing = it? it.id : null;
+  const d = it? {...it} : {part: state.filter.part||"", round: state.filter.round||thisRound(), status:"open", no:"", title:"", target:"", issue:"", action:"", owner:"", due:"", doneAt:"", beforeId:null, afterId:null};
+  if(!it && d.part) d.no=nextNo(d.part,d.round);
+  state.draft=d;
+  partOptions($("#sPart"), d.part);
+  $("#sRound").value=d.round||""; $("#sStatus").value=d.status; $("#sDue").value=d.due||""; $("#sOwner").value=d.owner||""; $("#sDoneAt").value=d.doneAt||"";
+  $("#sNo").value=d.no||""; $("#sTitle").value=d.title||""; $("#sTarget").value=d.target||""; $("#sIssue").value=d.issue||""; $("#sAction").value=d.action||"";
+  $("#dlgTitle").textContent = "■ 자체안전점검_재해분석 및 방지대책" + (d.part? ` (${d.part})`:"");
+  $("#btnDel").hidden = !it; $("#delConfirm").hidden=true;
+  for(const inp of dlg.querySelectorAll("input,select,textarea")) inp.disabled=!canWrite;
+  renderSlot("before"); renderSlot("after");
+  const who=$("#sWho"); who.textContent = it&&it.updatedAt? "최종 수정 "+new Date(it.updatedAt).toLocaleString("ko-KR",{dateStyle:"short",timeStyle:"short"}) : (canWrite? "" : "읽기 전용 권한입니다.");
+  if(it && it.updatedBy && user){ user.profiles([it.updatedBy]).then(ps=>{ const n=ps?.[it.updatedBy]?.name; if(n && state.editing===it.id) who.textContent += " · "+n; }).catch(()=>{}); }
+  if(!dlg.open) dlg.showModal();
+}
+function renderSlot(which){
+  const slot=$(which==="before"?"#slotBefore":"#slotAfter"); const key=which+"Id"; const id=state.draft[key];
+  slot.replaceChildren(); slot.classList.toggle("has",!!id); slot.style.backgroundImage = id? `url("${blobUrl(id)}")` : "";
+  const ops=el("div",{class:"ops"});
+  if(canWrite && assets){
+    const fid="file-"+which;
+    const input=el("input",{type:"file",accept:"image/*",id:fid});
+    input.addEventListener("change",()=>{ if(input.files[0]) uploadPhoto(which,input.files[0]); });
+    slot.append(input);
+    ops.append(el("label",{class:"up",for:fid,text: id?"사진 교체":"사진 올리기"}));
+    if(id) ops.append(el("button",{type:"button",text:"삭제",onclick:()=>{ state.draft[key]=null; renderSlot(which); }}));
+  }
+  if(!id) slot.append(el("span",{text: canWrite&&assets? (which==="before"?"개선 전 사진":"개선 후 사진")+"\n(누르거나 끌어다 놓기)" : "사진 없음", style:"white-space:pre-line;padding:12px"}));
+  if(ops.childNodes.length) slot.append(ops);
+  if(id) slot.append(el("a",{href:blobUrl(id),target:"_blank",rel:"noopener",style:"position:absolute;left:8px;bottom:8px;font-size:12px;color:var(--ink-2);background:var(--surface);padding:3px 8px;border-radius:5px",text:"원본 보기"}));
+}
+async function shrink(file){
+  try{
+    const bmp=await createImageBitmap(file, {imageOrientation:"from-image"});
+    const max=1600, s=Math.min(1, max/Math.max(bmp.width,bmp.height));
+    if(s===1 && file.size<1.5e6) return file;
+    const c=document.createElement("canvas"); c.width=Math.round(bmp.width*s); c.height=Math.round(bmp.height*s);
+    c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",0.85));
+  }catch{ return file; }
+}
+async function uploadPhoto(which, file){
+  if(!file.type.startsWith("image/")){ toast("이미지 파일만 올릴 수 있습니다"); return; }
+  const slot=$(which==="before"?"#slotBefore":"#slotAfter"); slot.classList.add("busy");
+  try{ const blob=await shrink(file); const r=await assets.upload(blob); state.draft[which+"Id"]=r.id; renderSlot(which); }
+  catch(e){ toast("사진을 올리지 못했습니다: "+(e?.message||e?.code||"알 수 없는 오류")); }
+  finally{ slot.classList.remove("busy"); }
+}
+for(const which of ["before","after"]){
+  const slot=$(which==="before"?"#slotBefore":"#slotAfter");
+  slot.addEventListener("dragover",e=>{ if(canWrite&&assets){e.preventDefault();} });
+  slot.addEventListener("drop",e=>{ if(!(canWrite&&assets)) return; e.preventDefault(); const f=e.dataTransfer.files[0]; if(f) uploadPhoto(which,f); });
+}
+$("#sPart").addEventListener("change",e=>{ if(!state.editing){ $("#sNo").value=nextNo(e.target.value, $("#sRound").value.trim()); } });
+$("#sStatus").addEventListener("change",e=>{ if(e.target.value==="done" && !$("#sDoneAt").value) $("#sDoneAt").value=today(); });
+dlg.addEventListener("click",e=>{ if(e.target.closest("[data-close]")) dlg.close(); });
+$("#btnNew").addEventListener("click",()=>openSheet(null));
+$("#btnDel").addEventListener("click",()=>{ $("#delConfirm").hidden=false; $("#btnDel").hidden=true; });
+$("#delNo").addEventListener("click",()=>{ $("#delConfirm").hidden=true; $("#btnDel").hidden=false; });
+$("#delYes").addEventListener("click",async()=>{
+  try{ await db.doc("items/"+state.editing).delete(); dlg.close(); toast("삭제했습니다"); }
+  catch(e){ toast("삭제하지 못했습니다: "+(e?.message||e?.code)); }
+});
+$("#sheet").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!db||!canWrite) return;
+  const d=state.draft;
+  const rec={
+    part:$("#sPart").value, round:$("#sRound").value.trim(), status:$("#sStatus").value,
+    due:$("#sDue").value||"", owner:$("#sOwner").value.trim(), doneAt:$("#sDoneAt").value||"",
+    no:$("#sNo").value.trim(), title:$("#sTitle").value.trim(), target:$("#sTarget").value.trim(),
+    issue:$("#sIssue").value.trim(), action:$("#sAction").value.trim(),
+    beforeId:d.beforeId||null, afterId:d.afterId||null,
+    updatedAt:new Date().toISOString(), updatedBy:myId||null
+  };
+  if(!rec.part){ toast("파트를 선택하세요"); $("#sPart").focus(); return; }
+  if(!rec.title){ toast("제목을 입력하세요"); $("#sTitle").focus(); return; }
+  if(!/^\d{4}-\d{2}$/.test(rec.round)){ toast("점검월은 2026-11 형식으로 입력하세요"); $("#sRound").focus(); return; }
+  if(rec.status==="done" && !rec.action){ toast("완료 처리하려면 개선 결과를 입력하세요"); $("#sAction").focus(); return; }
+  if(rec.status!=="done") rec.doneAt = rec.doneAt && rec.status==="done" ? rec.doneAt : "";
+  const btn=$("#btnSave"); btn.disabled=true;
+  try{
+    if(state.editing){ await db.doc("items/"+state.editing).update(rec); }
+    else { rec.createdAt=rec.updatedAt; rec.createdBy=myId||null; await db.collection("items").doc().set(rec); }
+    dlg.close(); toast("저장했습니다");
+  }catch(err){
+    if(err?.code==="invalid_argument"){ canWrite=false; applyRole(); toast("이 계정은 보기 권한만 있어 저장할 수 없습니다"); }
+    else toast("저장하지 못했습니다: "+(err?.message||err?.code));
+  }finally{ btn.disabled=false; }
+});
+
+/* ---------- settings ---------- */
+const dlgSet=$("#dlgSet");
+dlgSet.addEventListener("click",e=>{ if(e.target.closest("[data-close]")) dlgSet.close(); });
+$("#btnSettings").addEventListener("click",()=>{ $("#setParts").value=state.parts.join("\n"); dlgSet.showModal(); });
+$("#setForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const list=[...new Set($("#setParts").value.split("\n").map(s=>s.trim()).filter(Boolean))];
+  try{ await db.doc("settings/parts").set({list, updatedAt:new Date().toISOString()}); dlgSet.close(); toast("파트 목록을 저장했습니다"); }
+  catch(err){ toast("저장하지 못했습니다: "+(err?.message||err?.code)); }
+});
+
+/* ---------- CSV ---------- */
+$("#btnCsv").addEventListener("click",async()=>{
+  const rows=state.items.filter(i=>inScope(i)).filter(statusMatch);
+  const head=["파트","점검월","번호","제목","대상","현황 및 문제점","개선 결과","상태","담당자","조치기한","완료일","기한초과","개선전 사진","개선후 사진"];
+  const q=v=>{ const s=String(v??""); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const lines=[head.join(",")].concat(rows.map(i=>[i.part,i.round,i.no,i.title,i.target,i.issue,i.action,STATUS[i.status],i.owner,i.due,i.doneAt,isOver(i)?"Y":"",i.beforeId?"있음":"",i.afterId?"있음":""].map(q).join(",")));
+  try{ await downloads.save({filename:`자체안전점검_시정조치_${state.filter.round||"전체"}.csv`, data:"﻿"+lines.join("\r\n")}); }
+  catch(e){ if(e?.code!=="cancelled" && e?.code!=="declined") toast("내보내지 못했습니다"); }
+});
+
+/* ---------- PPT import ---------- */
+const kids=(n,name)=>n? [...n.children].filter(c=>c.localName===name) : [];
+const kid=(n,name)=>kids(n,name)[0];
+const descs=(n,name)=>n? [...n.getElementsByTagNameNS("*",name)] : [];
+const norm=s=>String(s||"").replace(/[\s 　·:：\-–—_]/g,"");
+const R_NS="http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const IMG_MIME={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",bmp:"image/bmp",webp:"image/webp"};
+function txText(tx){
+  if(!tx) return "";
+  return kids(tx,"p").map(p=>{ let s=""; for(const c of p.children){ if(c.localName==="r"||c.localName==="fld") s+=descs(c,"t").map(t=>t.textContent).join(""); else if(c.localName==="br") s+="\n"; } return s; }).join("\n").replace(/\n{3,}/g,"\n\n").trim();
+}
+function xfrmRect(x){ const o=kid(x,"off"), e=kid(x,"ext"); return o&&e? {x:+o.getAttribute("x"),y:+o.getAttribute("y"),w:+e.getAttribute("cx"),h:+e.getAttribute("cy")} : null; }
+function blipId(n){ const b=descs(n,"blip")[0]; return b? (b.getAttributeNS(R_NS,"embed")||b.getAttribute("r:embed")) : null; }
+function walkTree(node, T, out){
+  for(const c of node.children){
+    const ln=c.localName;
+    if(ln==="sp"){
+      const sp=kid(c,"spPr"); const r=T(xfrmRect(kid(sp,"xfrm"))); if(!r) continue;
+      const t=txText(kid(c,"txBody")); if(t) out.blocks.push({...r,text:t});
+      const bf=kid(sp,"blipFill"); if(bf){ const id=blipId(bf); if(id) out.pics.push({...r,rid:id}); }
+    } else if(ln==="pic"){
+      const r=T(xfrmRect(kid(kid(c,"spPr"),"xfrm"))); const id=blipId(kid(c,"blipFill")); if(r&&id) out.pics.push({...r,rid:id});
+    } else if(ln==="graphicFrame"){
+      const fr=T(xfrmRect(kid(c,"xfrm"))); const tbl=descs(c,"tbl")[0]; if(!fr||!tbl) continue;
+      const cols=descs(kid(tbl,"tblGrid"),"gridCol").map(g=>+g.getAttribute("w")||0);
+      const sx=fr.w && cols.reduce((a,b)=>a+b,0)? fr.w/cols.reduce((a,b)=>a+b,0) : 1;
+      let y=fr.y;
+      for(const tr of kids(tbl,"tr")){
+        const h=+tr.getAttribute("h")||0; let ci=0;
+        for(const tc of kids(tr,"tc")){
+          const span=+tc.getAttribute("gridSpan")||1, rs=+tc.getAttribute("rowSpan")||1;
+          const x=fr.x+cols.slice(0,ci).reduce((a,b)=>a+b,0)*sx, w=cols.slice(ci,ci+span).reduce((a,b)=>a+b,0)*sx;
+          ci+=1;
+          if(tc.getAttribute("hMerge")==="1"||tc.getAttribute("vMerge")==="1") continue;
+          if(span>1) ci+=span-1;
+          const rect={x,y,w,h:h*rs};
+          const t=txText(kid(tc,"txBody")); if(t) out.blocks.push({...rect,text:t});
+          const id=blipId(kid(tc,"tcPr")); if(id) out.pics.push({...rect,rid:id});
+        }
+        y+=h;
+      }
+    } else if(ln==="grpSp"){
+      const gx=kid(kid(c,"grpSpPr"),"xfrm"); const g=xfrmRect(gx);
+      const co=kid(gx,"chOff"), ce=kid(gx,"chExt");
+      if(!g||!co||!ce){ walkTree(c,T,out); continue; }
+      const cx=+co.getAttribute("x"), cy=+co.getAttribute("y"), cw=+ce.getAttribute("cx")||1, ch=+ce.getAttribute("cy")||1;
+      const T2=r=> r && T({x:g.x+(r.x-cx)*g.w/cw, y:g.y+(r.y-cy)*g.h/ch, w:r.w*g.w/cw, h:r.h*g.h/ch});
+      walkTree(c,T2,out);
+    } else if(ln==="AlternateContent"){
+      const ch=kid(c,"Choice")||kid(c,"Fallback"); if(ch) walkTree(ch,T,out);
+    }
+  }
+}
+function relsMap(xml, base){
+  const m={}; if(!xml) return m;
+  const d=new DOMParser().parseFromString(xml,"application/xml");
+  for(const r of descs(d,"Relationship")){
+    let t=r.getAttribute("Target")||""; if(r.getAttribute("TargetMode")==="External") continue;
+    const parts=(t.startsWith("/")? t.slice(1) : base+t).split("/"); const out=[];
+    for(const p of parts){ if(p==="..") out.pop(); else if(p!=="."&&p!=="") out.push(p); }
+    m[r.getAttribute("Id")]=out.join("/");
+  }
+  return m;
+}
+function findPart(text){
+  const ps=allParts().slice().sort((a,b)=>b.length-a.length); const n=norm(text).toUpperCase();
+  for(const p of ps){ if(n.includes(norm(p).toUpperCase())) return p; }
+  for(const p of ps){ const core=norm(p).replace(/(파트|팀)$/,"").toUpperCase(); if(core.length>=2 && n.includes(core)) return p; }
+  return "";
+}
+function rightOf(label, blocks){
+  const cands=blocks.filter(b=>b!==label && b.x>=label.x+label.w*0.5 && b.y < label.y+label.h && b.y+b.h > label.y);
+  cands.sort((a,b)=>a.x-b.x); return cands[0];
+}
+function below(label, blocks){
+  const cands=blocks.filter(b=>b!==label && b.y>=label.y+label.h*0.5);
+  cands.sort((a,b)=>a.y-b.y||a.x-b.x); return cands[0];
+}
+async function parsePptx(file){
+  if(!window.JSZip) throw new Error("PPT 해석 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도하세요.");
+  const zip=await JSZip.loadAsync(file);
+  const read=p=>zip.file(p)? zip.file(p).async("string") : Promise.resolve(null);
+  const presXml=await read("ppt/presentation.xml"); if(!presXml) throw new Error("PowerPoint(.pptx) 파일이 아닙니다.");
+  const pres=new DOMParser().parseFromString(presXml,"application/xml");
+  const sz=descs(pres,"sldSz")[0]; const W=+sz?.getAttribute("cx")||12192000, H=+sz?.getAttribute("cy")||6858000;
+  const prels=relsMap(await read("ppt/_rels/presentation.xml.rels"),"ppt/");
+  let slidePaths=descs(pres,"sldId").map(s=>prels[s.getAttributeNS(R_NS,"id")||s.getAttribute("r:id")]).filter(Boolean);
+  if(!slidePaths.length) slidePaths=Object.keys(zip.files).filter(p=>/^ppt\/slides\/slide\d+\.xml$/.test(p)).sort((a,b)=>+a.match(/\d+/)[0]-+b.match(/\d+/)[0]);
+  let fileRound="", fileDate="", filePart="";
+  const out=[];
+  for(let si=0; si<slidePaths.length; si++){
+    const sp=slidePaths[si]; const xml=await read(sp); if(!xml) continue;
+    const doc=new DOMParser().parseFromString(xml,"application/xml");
+    const tree=descs(doc,"spTree")[0]; if(!tree) continue;
+    const acc={blocks:[],pics:[]}; walkTree(tree,r=>r,acc);
+    const blocks=acc.blocks; const all=blocks.map(b=>b.text).join("\n");
+    const dm=all.match(/(20\d{2})\s*[년.\-/]\s*(\d{1,2})\s*[월.\-/]\s*(?:(\d{1,2})\s*일?)?/);
+    const noB=blocks.find(b=>/자체\s*점검\s*[-–—_]?\s*\d+/.test(b.text));
+    const lab=re=>blocks.find(b=>re.test(norm(b.text)));
+    const issueL=lab(/^(현황및?문제점|현황및?문제|문제점|지적사항|현황)$/);
+    const actL=lab(/^개선(결과|내용|대책|조치|사항)$/);
+    if(!noB && !issueL){ // cover or other slide
+      if(dm && !fileRound){ fileRound=`${dm[1]}-${dm[2].padStart(2,"0")}`; if(dm[3]) fileDate=`${fileRound}-${dm[3].padStart(2,"0")}`; }
+      if(!filePart) filePart=findPart(all);
+      continue;
+    }
+    const it={slide:si+1, warns:[]};
+    if(noB){
+      const m=noB.text.match(/(자체\s*점검\s*[-–—_]?\s*\d+)\s*[\n:|.\-–]?\s*([\s\S]*)/);
+      it.no=m[1].replace(/\s+/g,"").replace(/[–—_]/,"-").replace(/점검(\d)/,"점검-$1");
+      it.title=(m[2]||"").trim() || (rightOf(noB,blocks)?.text||"").trim();
+    } else { it.no=""; it.warns.push("점검 번호를 찾지 못했습니다"); it.title=""; }
+    const tgB=blocks.find(b=>/^대\s*상/.test(b.text.trim()));
+    if(tgB){ const m=tgB.text.trim().match(/^대\s*상\s*[-–—:：]?\s*([\s\S]*)$/); it.target=(m&&m[1].trim()) || (rightOf(tgB,blocks)?.text||"").trim(); } else it.target="";
+    it.issue= issueL? (rightOf(issueL,blocks)?.text||"").trim() : "";
+    it.action= actL? (rightOf(actL,blocks)?.text||"").trim() : "";
+    if(!it.title) it.title = (it.issue.split("\n")[0]||"").replace(/^[○●\-•\s]+/,"").slice(0,60);
+    const header=blocks.find(b=>/재해분석|방지대책|자체안전점검/.test(b.text));
+    it.part = (header&&findPart(header.text)) || findPart(all) || "";
+    it.round = dm? `${dm[1]}-${dm[2].padStart(2,"0")}` : "";
+    // pictures
+    const rels=relsMap(await read(sp.replace(/slides\/(slide\d+\.xml)$/,"slides/_rels/$1.rels")), sp.replace(/[^/]+$/,""));
+    const bL=lab(/^개선전$/), aL=lab(/^개선후$/);
+    const minY=Math.max(bL?bL.y:0, aL?aL.y:0, actL? actL.y+actL.h*0.5 : 0);
+    let pics=acc.pics.filter(p=>p.w*p.h > W*H*0.015 && p.y+p.h/2 > H*0.15 && p.y+p.h/2 > minY);
+    const cx=p=>p.x+p.w/2;
+    let before=null, after=null;
+    if(bL && aL && pics.length){
+      const sorted=pics.slice();
+      before=sorted.filter(p=>Math.abs(cx(p)-cx(bL))<Math.abs(cx(p)-cx(aL))).sort((a,b)=>b.w*b.h-a.w*a.h)[0]||null;
+      after=sorted.filter(p=>Math.abs(cx(p)-cx(aL))<=Math.abs(cx(p)-cx(bL))).sort((a,b)=>b.w*b.h-a.w*a.h)[0]||null;
+    } else if(pics.length){
+      pics.sort((a,b)=>cx(a)-cx(b));
+      if(pics.length>=2){ before=pics[0]; after=pics[pics.length-1]; }
+      else if(cx(pics[0])<W/2) before=pics[0]; else after=pics[0];
+    }
+    for(const [k,p] of [["before",before],["after",after]]){
+      if(!p) continue; const path=rels[p.rid]; const f=path&&zip.file(path); if(!f) continue;
+      const ext=(path.split(".").pop()||"").toLowerCase();
+      if(!IMG_MIME[ext]){ it.warns.push(`개선 ${k==="before"?"전":"후"} 사진 형식(.${ext})은 가져올 수 없습니다`); continue; }
+      const raw=await f.async("blob"); it[k]=new Blob([raw],{type:IMG_MIME[ext]}); it[k+"Url"]=URL.createObjectURL(it[k]);
+    }
+    if(!it.issue) it.warns.push("현황 및 문제점을 찾지 못했습니다");
+    out.push(it);
+  }
+  for(const it of out){ if(!it.part) it.part=filePart; if(!it.round) it.round=fileRound; it.doneAt=fileDate; }
+  return {items:out, round:fileRound, part:filePart, slides:slidePaths.length};
+}
+
+const dlgImp=$("#dlgImp"); let imp=null;
+dlgImp.addEventListener("click",e=>{ if(e.target.closest("[data-close]")) dlgImp.close(); });
+dlgImp.addEventListener("close",()=>{ if(imp) for(const it of imp.items){ if(it.beforeUrl) URL.revokeObjectURL(it.beforeUrl); if(it.afterUrl) URL.revokeObjectURL(it.afterUrl); } imp=null; $("#impList").replaceChildren(); $("#impTop").hidden=true; $("#impDrop").hidden=false; $("#impProg").textContent=""; $("#impGo").disabled=true; });
+function openImport(){ if(!dlgImp.open) dlgImp.showModal(); }
+$("#impFile").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; if(f) loadImport(f); });
+const drop=$("#impDrop");
+drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("on");});
+drop.addEventListener("dragleave",()=>drop.classList.remove("on"));
+drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("on");const f=e.dataTransfer.files[0]; if(f) loadImport(f);});
+document.addEventListener("dragover",e=>{ if(canWrite && !dlg.open && !dlgSet.open && [...(e.dataTransfer?.types||[])].includes("Files")){ e.preventDefault(); } });
+document.addEventListener("drop",e=>{ if(e.defaultPrevented||!canWrite||dlg.open||dlgSet.open) return; const f=e.dataTransfer?.files?.[0]; if(f && /\.pptx$/i.test(f.name)){ e.preventDefault(); loadImport(f); } });
+
+async function loadImport(file){
+  openImport();
+  if(/\.ppt$/i.test(file.name)){ $("#impProg").textContent="예전 형식(.ppt)은 읽을 수 없습니다. PowerPoint에서 ‘다른 이름으로 저장 → .pptx’ 후 올려 주세요."; return; }
+  $("#impProg").textContent=`‘${file.name}’ 읽는 중…`;
+  try{
+    const r=await parsePptx(file);
+    imp={items:r.items.map(it=>({...it, on:true})), name:file.name};
+    if(!imp.items.length){ $("#impProg").textContent=`슬라이드 ${r.slides}장에서 점검 양식을 찾지 못했습니다. 양식 슬라이드에 ‘자체점검-번호’와 ‘현황 및 문제점’ 칸이 있는지 확인해 주세요.`; return; }
+    const ps=$("#impPart"); ps.replaceChildren(el("option",{value:"",text:"선택"}),...allParts().map(p=>el("option",{value:p,text:p}))); ps.value=r.part||state.filter.part||"";
+    $("#impRound").value=r.round||state.filter.round||thisRound();
+    for(const it of imp.items){
+      it.status = it.action? "done":"open";
+      it.detectedPart=it.part;
+      if(!it.part) it.part=ps.value;
+      if(!it.round) it.round=$("#impRound").value;
+    }
+    $("#impDrop").hidden=true; $("#impTop").hidden=false;
+    renderImport();
+  }catch(e){ $("#impProg").textContent="파일을 읽지 못했습니다: "+(e?.message||e); }
+}
+function dupOf(it){ return state.items.find(x=>x.part===it.part && x.round===it.round && norm(x.no)===norm(it.no) && it.no); }
+function renderImport(){
+  const list=$("#impList"); list.replaceChildren();
+  const parts=allParts();
+  for(const it of imp.items){
+    const dup=dupOf(it);
+    if(dup && it.on===true && !it.touched && !it.result) it.on=false;
+    const cb=el("input",{type:"checkbox","aria-label":`슬라이드 ${it.slide} 가져오기`}); cb.checked=it.on;
+    cb.addEventListener("change",()=>{ it.on=cb.checked; it.touched=true; renderImport(); });
+    const pSel=el("select",{"aria-label":"파트"},el("option",{value:"",text:"파트 선택"}),...parts.map(p=>el("option",{value:p,text:p}))); pSel.value=it.part||"";
+    pSel.addEventListener("change",()=>{ it.part=pSel.value; it.partTouched=true; renderImport(); });
+    const no=el("input",{type:"text",value:it.no||"","aria-label":"번호",placeholder:"자체점검-N"}); no.addEventListener("change",()=>{ it.no=no.value.trim(); renderImport(); });
+    const ti=el("input",{type:"text",value:it.title||"","aria-label":"제목",placeholder:"제목"}); ti.addEventListener("input",()=>{ it.title=ti.value; });
+    const st=el("select",{"aria-label":"상태"},...Object.entries(STATUS).map(([v,t])=>el("option",{value:v,text:t}))); st.value=it.status; st.addEventListener("change",()=>{ it.status=st.value; });
+    const pics=el("div",{class:"pics"});
+    for(const [k,l] of [["before","개선 전"],["after","개선 후"]]){ const s=el("span",{title:l}); if(it[k+"Url"]) s.style.backgroundImage=`url("${it[k+"Url"]}")`; else s.textContent=l+"\n없음"; s.style.whiteSpace="pre-line"; pics.append(s); }
+    const warns=[...it.warns]; if(!it.part) warns.push("파트를 선택하세요"); if(dup && !it.result?.ok) warns.push(`이미 등록된 번호입니다 (${dup.part} ${dup.no}). 체크하면 기존 건을 이 내용으로 덮어씁니다`);
+    const card=el("div",{class:"imp"+(it.on?"":" off")}, cb,
+      el("div",{}, el("div",{class:"f1"},pSel,no,ti,st),
+        el("div",{class:"txt"}, el("div",{},el("b",{text:`슬라이드 ${it.slide} · 대상 ${it.target||"—"} · 현황 및 문제점`}),document.createTextNode(it.issue||"—")), el("div",{},el("b",{text:"개선 결과"}),document.createTextNode(it.action||"—")))),
+      pics,
+      warns.length? el("div",{class:"warn",text:"⚠ "+warns.join(" · ")}):null,
+      it.result? el("div",{class:"res "+(it.result.ok?"ok":"err"),text:it.result.msg}):null);
+    list.append(card);
+  }
+  const sel=imp.items.filter(i=>i.on&&!i.result?.ok);
+  $("#impSum").textContent=`‘${imp.name}’에서 ${imp.items.length}건을 찾았습니다`;
+  $("#impGo").textContent=`선택한 ${sel.length}건 등록`; $("#impGo").disabled=!sel.length || !db || !canWrite;
+  if(!db) $("#impProg").textContent="공유 데이터에 연결되지 않아 미리보기만 가능합니다.";
+}
+$("#impPart").addEventListener("change",e=>{ if(!imp) return; for(const it of imp.items) if(!it.detectedPart && !it.partTouched) it.part=e.target.value; renderImport(); });
+$("#impRound").addEventListener("change",e=>{ if(!imp) return; const v=e.target.value.trim(); for(const it of imp.items) it.round=v; renderImport(); });
+$("#impForm").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!imp||!db) return;
+  const sel=imp.items.filter(i=>i.on&&!i.result?.ok);
+  const bad=sel.find(i=>!i.part||!i.title||!/^\d{4}-\d{2}$/.test(i.round));
+  if(bad){ $("#impProg").textContent=`슬라이드 ${bad.slide}: 파트·제목·점검월(2026-11 형식)을 확인하세요.`; return; }
+  const go=$("#impGo"); go.disabled=true; let ok=0;
+  for(let i=0;i<sel.length;i++){
+    const it=sel[i]; $("#impProg").textContent=`${i+1} / ${sel.length} 등록 중… (슬라이드 ${it.slide})`;
+    try{
+      const ids={};
+      for(const k of ["before","after"]){
+        if(!it[k]) { ids[k]=null; continue; }
+        if(!assets){ ids[k]=null; it.warns.push("사진 업로드 권한이 없어 글만 등록했습니다"); continue; }
+        ids[k]=(await assets.upload(await shrink(it[k]))).id;
+      }
+      const now=new Date().toISOString();
+      const rec={part:it.part, round:it.round, status:it.status, due:"", owner:"", doneAt: it.status==="done"? (it.doneAt||today()) : "",
+        no:it.no, title:it.title.trim(), target:it.target||"", issue:it.issue||"", action:it.action||"",
+        beforeId:ids.before, afterId:ids.after, updatedAt:now, updatedBy:myId||null, source:"ppt:"+imp.name};
+      const dup=dupOf(it);
+      if(dup){ await db.doc("items/"+dup.id).update(rec); }
+      else { rec.createdAt=now; rec.createdBy=myId||null; await db.collection("items").doc().set(rec); }
+      it.result={ok:true,msg:dup?"기존 건을 갱신했습니다":"등록했습니다"}; ok++;
+    }catch(err){
+      it.result={ok:false,msg:"실패: "+(err?.message||err?.code||err)};
+      if(err?.code==="invalid_argument" && /권한|level|access/i.test(err?.message||"")){ break; }
+    }
+    renderImport();
+  }
+  $("#impProg").textContent=`${ok}건 등록 완료${ok<sel.length? ` · ${sel.length-ok}건 실패`:""}`;
+  if(ok) toast(`PPT에서 ${ok}건을 등록했습니다`);
+});
+
+/* ---------- filters ---------- */
+$("#fRound").addEventListener("change",e=>{state.filter.round=e.target.value;render();});
+$("#fPart").addEventListener("change",e=>{state.filter.part=e.target.value;render();});
+$("#fq").addEventListener("input",e=>{state.filter.q=e.target.value.trim();render();});
+$("#fStatus").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; state.filter.status=b.dataset.v; for(const x of $("#fStatus").children) x.setAttribute("aria-pressed",String(x===b)); render(); });
+
+function applyRole(){
+  document.body.classList.toggle("ro", !canWrite);
+  $("#btnSettings").hidden=!canAdmin;
+}
+
+/* ---------- boot (Vercel API) ---------- */
+async function api(method, path, body, raw){
+  const opt={method, headers:{}};
+  if(raw){ opt.headers["content-type"]=raw.type||"application/octet-stream"; opt.body=raw; }
+  else if(body!==undefined){ opt.headers["content-type"]="application/json"; opt.body=JSON.stringify(body); }
+  let r; try{ r=await fetch(path,opt); }catch{ throw {code:"network", message:"네트워크에 연결할 수 없습니다"}; }
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw {code:"http_"+r.status, message:j.error||("서버 오류 ("+r.status+")")};
+  return j;
+}
+const subs={items:[], parts:[]};
+let refreshing=null;
+function refresh(){
+  refreshing ??= (async()=>{
+    try{
+      const [a,b]=await Promise.all([api("GET","/api/items"), api("GET","/api/parts")]);
+      subs.parts.forEach(f=>f(b.list||[])); subs.items.forEach(f=>f(a.items||[]));
+      note(null);
+    }catch(e){ note("현황을 불러오지 못했습니다: "+(e.message||e), true); }
+    finally{ refreshing=null; }
+  })();
+  return refreshing;
+}
+const snapOf=rows=>({docs:rows.map(r=>({id:r.id, data:()=>{ const {id,...rest}=r; return rest; }})), metadata:{fromCache:false}});
+db={
+  collection(){ return {
+    onSnapshot(fn){ subs.items.push(rows=>fn(snapOf(rows))); return ()=>{}; },
+    doc(){ return { set: async d=>{ await api("POST","/api/items",d); await refresh(); } }; }
+  }; },
+  doc(path){
+    const [col,id]=path.split("/");
+    if(col==="settings") return {
+      set: async d=>{ await api("PUT","/api/parts",d); await refresh(); },
+      onSnapshot(fn){ subs.parts.push(list=>fn({exists:true, data:()=>({list})})); return ()=>{}; }
+    };
+    const q="/api/items?id="+encodeURIComponent(id);
+    return {
+      update: async d=>{ await api("PATCH",q,d); await refresh(); },
+      delete: async()=>{ await api("DELETE",q); await refresh(); }
+    };
+  }
+};
+assets={ upload: async blob=>{ if(blob.size>4*1024*1024) throw {message:"사진은 4MB 이하만 올릴 수 있습니다"}; return api("POST","/api/upload",undefined,blob); } };
+downloads={ save: async({filename,data})=>{
+  const b=data instanceof Blob? data : new Blob([data],{type:"text/csv;charset=utf-8"});
+  const u=URL.createObjectURL(b); const a=el("a",{href:u,download:filename}); document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),2000); return {status:"saved"};
+} };
+canWrite=true; canAdmin=true; applyRole(); $("#btnCsv").hidden=false;
+render();
+db.doc("settings/parts").onSnapshot(s=>{ state.parts=(s.data().list||[]).map(String); render(); });
+db.collection("items").onSnapshot(snap=>{ state.items=snap.docs.map(d=>({id:d.id, ...d.data()})); state.loaded=true; render(); });
+refresh();
+setInterval(()=>{ if(!document.hidden) refresh(); }, 15000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refresh(); });
+})();
+</script>
+
+</body>
+</html>
